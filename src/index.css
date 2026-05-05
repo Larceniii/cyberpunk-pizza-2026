@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Sidebar hover states */
+.sidebar-item-hover:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Smooth animations */
+* {
+  transition-property: background-color, border-color, opacity, transform;
+  transition-duration: 0.15s;
+  transition-timing-function: ease;
+}
+
+/* Mantine dark overrides */
+.mantine-AppShell-navbar {
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
