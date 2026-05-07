@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   AppShell,
   Burger,
@@ -14,8 +14,9 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { RefreshCw, ArrowUpDown } from 'lucide-react';
-import ApiKeySetup from './components/ApiKeySetup';
+import { RefreshCw, ArrowUpDown, Search, Filter } from 'lucide-react';
+import { TextInput, ActionIcon as MantineActionIcon } from '@mantine/core';
+import LandingPage from './components/LandingPage';
 import ChannelsSidebar from './components/ChannelsSidebar';
 import ChannelManager from './components/ChannelManager';
 import LabelManager from './components/LabelManager';
@@ -53,6 +54,8 @@ function App() {
   const [videoSortBy, setVideoSortBy] = useState<VideoSortOption>('newest');
   const [mobileNavOpened, mobileNav] = useDisclosure(false);
   const [desktopNavOpened, desktopNav] = useDisclosure(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showUnwatchedOnly, setShowUnwatchedOnly] = useState(false);
 
   useEffect(() => {
     const savedData = loadData();
@@ -308,12 +311,46 @@ function App() {
     saveData(newData);
   };
 
+  const handlePersonalizationChange = (appTitle: string, accentColor: string) => {
+    const newData = { ...data, appTitle, accentColor };
+    setData(newData);
+    saveData(newData);
+  };
+
+  useEffect(() => {
+    const color = data.accentColor || '#e03131';
+    document.documentElement.style.setProperty('--accent-red', color);
+    
+    let r = 224, g = 49, b = 49;
+    if (color.startsWith('#')) {
+      const hex = color.replace('#', '');
+      if (hex.length === 6) {
+        r = parseInt(hex.substring(0, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
+      }
+    }
+    document.documentElement.style.setProperty('--accent-red-glow', `rgba(${r}, ${g}, ${b}, 0.4)`);
+  }, [data.accentColor]);
+
   let filteredVideos = videos.filter(video => {
     if (selectedChannelId && video.channelId !== selectedChannelId) return false;
     if (selectedLabel) {
       const channel = data.channels.find(c => c.id === video.channelId);
       if (!channel || !channel.labels?.includes(selectedLabel)) return false;
     }
+    
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const matchesTitle = video.title.toLowerCase().includes(query);
+      const matchesChannel = video.channelTitle.toLowerCase().includes(query);
+      if (!matchesTitle && !matchesChannel) return false;
+    }
+
+    // Unwatched filter
+    if (showUnwatchedOnly && data.watchedVideos.has(video.id)) return false;
+
     return true;
   });
 
@@ -348,7 +385,7 @@ function App() {
   };
 
   if (!data.apiKey) {
-    return <ApiKeySetup onApiKeySet={handleApiKeySet} />;
+    return <LandingPage onApiKeySet={handleApiKeySet} />;
   }
 
   const sortOptions = [
@@ -370,8 +407,8 @@ function App() {
       padding={0}
     >
       <AppShell.Header
+        className="glass"
         style={{
-          background: 'linear-gradient(to right, #0f0f0f, #161616)',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}
       >
@@ -396,12 +433,13 @@ function App() {
                 w={32}
                 h={32}
                 style={{
-                  background: 'linear-gradient(135deg, #e03131, #c92a2a)',
-                  borderRadius: 8,
+                  background: 'linear-gradient(135deg, var(--accent-red), #ff6b6b)',
+                  borderRadius: 10,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
+                  boxShadow: '0 4px 12px rgba(224, 49, 49, 0.3)',
                 }}
               >
                 <svg width="18" height="18" fill="white" viewBox="0 0 24 24">
@@ -409,10 +447,43 @@ function App() {
                 </svg>
               </Box>
               <div>
-                <Text fw={700} size="sm" c="white" lh={1.2}>MyTube</Text>
+                <Text fw={700} size="sm" c="white" lh={1.2}>{data.appTitle || 'MyTube'}</Text>
                 <Text size="xs" c="dimmed" lh={1}>Distraction-free</Text>
               </div>
             </Group>
+          </Group>
+          <Group wrap="nowrap" flex={1} justify="center" px="xl" visibleFrom="md">
+            <TextInput
+              placeholder="Search videos or channels..."
+              leftSection={<Search size={16} />}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.currentTarget.value)}
+              variant="filled"
+              size="sm"
+              w="100%"
+              style={{ maxWidth: 500 }}
+              radius="xl"
+              styles={{
+                input: {
+                  backgroundColor: 'rgba(255,255,255,0.03)',
+                  border: '1px solid var(--glass-border)',
+                  backdropFilter: 'blur(8px)',
+                  transition: 'all 0.2s ease',
+                  '&:focus': {
+                    backgroundColor: 'rgba(255,255,255,0.06)',
+                    borderColor: 'var(--accent-red)',
+                    boxShadow: '0 0 0 1px var(--accent-red)',
+                  }
+                }
+              }}
+              rightSection={
+                searchQuery && (
+                  <MantineActionIcon size="sm" variant="subtle" color="dimmed" onClick={() => setSearchQuery('')}>
+                    <Text size="xs">✕</Text>
+                  </MantineActionIcon>
+                )
+              }
+            />
           </Group>
 
           <Group gap="xs" wrap="nowrap">
@@ -428,22 +499,27 @@ function App() {
               apiKey={data.apiKey}
               pollingEnabled={data.pollingEnabled}
               pollingInterval={data.pollingInterval}
+              appTitle={data.appTitle}
+              accentColor={data.accentColor}
               onApiKeyChange={handleApiKeyChange}
               onPollingChange={handlePollingChange}
+              onPersonalizationChange={handlePersonalizationChange}
             />
           </Group>
         </Group>
       </AppShell.Header>
 
       <AppShell.Navbar
+        className="glass-navbar"
         style={{
-          background: '#0f0f0f',
           borderRight: '1px solid rgba(255,255,255,0.06)',
         }}
       >
         <ChannelsSidebar
           channels={data.channels}
           labels={data.labels}
+          videos={videos}
+          watchedVideos={data.watchedVideos}
           selectedChannelId={selectedChannelId}
           selectedLabel={selectedLabel}
           onChannelSelect={setSelectedChannelId}
@@ -453,7 +529,7 @@ function App() {
         />
       </AppShell.Navbar>
 
-      <AppShell.Main style={{ background: '#0d0d0d', minHeight: '100vh' }}>
+      <AppShell.Main style={{ background: 'transparent', minHeight: '100vh' }}>
         <Box p="lg">
           <Flex justify="space-between" align="flex-start" mb="md" wrap="wrap" gap="sm">
             <div>
@@ -485,6 +561,18 @@ function App() {
               {highlightRefreshButton && (
                 <Text size="xs" c="red">Click to fetch latest</Text>
               )}
+              <Tooltip label={showUnwatchedOnly ? "Show all videos" : "Show unwatched only"}>
+                <Button
+                  variant={showUnwatchedOnly ? 'light' : 'default'}
+                  color={showUnwatchedOnly ? 'blue' : undefined}
+                  size="sm"
+                  leftSection={<Filter size={14} />}
+                  onClick={() => setShowUnwatchedOnly(!showUnwatchedOnly)}
+                >
+                  {showUnwatchedOnly ? 'Unwatched' : 'All'}
+                </Button>
+              </Tooltip>
+              
               <Tooltip label="Refresh videos">
                 <Button
                   variant={highlightRefreshButton ? 'filled' : 'default'}
@@ -499,6 +587,7 @@ function App() {
                 </Button>
               </Tooltip>
             </Group>
+
           </Flex>
 
           {(filteredVideos.length > 0 || loading) && (
@@ -533,6 +622,7 @@ function App() {
 
           <VideoGrid
             videos={filteredVideos}
+            channels={data.channels}
             loading={loading}
             watchedVideos={data.watchedVideos}
             onToggleWatched={handleToggleWatched}

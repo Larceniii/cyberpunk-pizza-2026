@@ -16,6 +16,8 @@ export const loadData = (): AppData => {
         apiCallCount: data.apiCallCount || 0,
         cachedVideos: data.cachedVideos || {},
         labels: data.labels || [],
+        appTitle: data.appTitle || 'MyTube',
+        accentColor: data.accentColor || '#e03131',
         channels: (data.channels || []).map((channel: any) => ({
           ...channel,
           labels: channel.labels || []
@@ -35,6 +37,8 @@ export const loadData = (): AppData => {
     apiCallCount: 0,
     cachedVideos: {},
     labels: [],
+    appTitle: 'MyTube',
+    accentColor: '#e03131',
   };
 };
 

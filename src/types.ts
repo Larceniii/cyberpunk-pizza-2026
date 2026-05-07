@@ -27,4 +27,6 @@ export interface AppData {
   apiCallCount: number;
   cachedVideos: Record<string, Video>;
   labels: string[];
+  appTitle?: string;
+  accentColor?: string;
 }

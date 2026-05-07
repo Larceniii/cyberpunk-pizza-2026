@@ -5,24 +5,22 @@ import {
   Text,
   Group,
   Stack,
-  Badge,
   ActionIcon,
   Tooltip,
   Modal,
   Button,
   AspectRatio,
   Skeleton,
-  Image,
-  UnstyledButton,
   Avatar,
   Center,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { ExternalLink, Eye, Check, Play } from 'lucide-react';
-import { Video } from '../types';
+import { ExternalLink, Eye, EyeOff, Check, Play, SearchX } from 'lucide-react';
+import { Channel, Video } from '../types';
 
 interface VideoGridProps {
   videos: Video[];
+  channels: Channel[];
   loading: boolean;
   watchedVideos: Set<string>;
   onToggleWatched: (videoId: string) => void;
@@ -43,23 +41,28 @@ function formatDate(dateString: string) {
 
 interface VideoCardProps {
   video: Video;
+  channel?: Channel;
   watched: boolean;
   onSelect: () => void;
   onToggleWatched: (e: React.MouseEvent) => void;
 }
 
-function VideoCard({ video, watched, onSelect, onToggleWatched }: VideoCardProps) {
+function VideoCard({ video, channel, watched, onSelect, onToggleWatched }: VideoCardProps) {
   const [hovered, setHovered] = useState(false);
 
   return (
     <Box
-      style={{ cursor: 'pointer' }}
+      className="video-card animate-fade-in-up"
+      style={{ 
+        cursor: 'pointer',
+        animationDelay: `${Math.min(10, 0) * 0.05}s` // This will be handled in the grid
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <Stack gap="xs">
         {/* Thumbnail */}
-        <Box pos="relative" style={{ borderRadius: 10, overflow: 'hidden' }}>
+        <Box pos="relative" style={{ borderRadius: 12, overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.3)' }}>
           <AspectRatio ratio={16 / 9}>
             <img
               src={video.thumbnail}
@@ -91,15 +94,16 @@ function VideoCard({ video, watched, onSelect, onToggleWatched }: VideoCardProps
           >
             <Box
               style={{
-                background: 'rgba(224,49,49,0.9)',
+                background: 'linear-gradient(135deg, var(--accent-red), #ff6b6b)',
                 borderRadius: '50%',
-                width: 48,
-                height: 48,
+                width: 54,
+                height: 54,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 transform: hovered ? 'scale(1)' : 'scale(0.8)',
-                transition: 'transform 0.2s',
+                transition: 'all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                boxShadow: '0 8px 24px rgba(224, 49, 49, 0.5)',
               }}
             >
               <Play size={20} fill="white" color="white" />
@@ -125,53 +129,71 @@ function VideoCard({ video, watched, onSelect, onToggleWatched }: VideoCardProps
             </Box>
           )}
 
-          {/* Eye toggle */}
+          {/* Quick actions */}
           <Box
             pos="absolute"
-            top={6}
-            left={6}
-            style={{ opacity: hovered ? 1 : 0, transition: 'opacity 0.2s' }}
+            top={8}
+            left={8}
+            style={{ 
+              opacity: hovered ? 1 : 0, 
+              transition: 'opacity 0.2s',
+              zIndex: 10 
+            }}
           >
             <Tooltip label={watched ? 'Mark unwatched' : 'Mark watched'} position="right">
               <ActionIcon
-                size="sm"
+                size="md"
                 variant="filled"
-                color="dark"
+                color={watched ? 'blue' : 'dark'}
                 radius="xl"
                 aria-label={watched ? 'Mark as unwatched' : 'Mark as watched'}
                 onClick={onToggleWatched}
-                style={{ background: 'rgba(0,0,0,0.7)' }}
+                style={{ 
+                  background: watched ? 'rgba(34, 139, 230, 0.9)' : 'rgba(0,0,0,0.7)',
+                  backdropFilter: 'blur(4px)'
+                }}
               >
-                <Eye size={12} />
+                {watched ? <EyeOff size={16} /> : <Eye size={16} />}
               </ActionIcon>
             </Tooltip>
           </Box>
         </Box>
 
         {/* Info */}
-        <Group align="flex-start" wrap="nowrap" gap="xs" px={2} pb={4}>
+        <Group align="flex-start" wrap="nowrap" gap="sm" px="sm" pb="md">
           <Avatar
-            size={28}
+            src={channel?.thumbnail}
+            size={32}
             radius="xl"
-            style={{ flexShrink: 0, marginTop: 2, background: 'rgba(255,255,255,0.1)' }}
+            style={{ 
+              flexShrink: 0, 
+              marginTop: 4, 
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))',
+              border: '1px solid rgba(255,255,255,0.1)'
+            }}
           >
-            <Text size="xs" fw={700} c="white">
-              {video.channelTitle.charAt(0).toUpperCase()}
-            </Text>
+            {!channel?.thumbnail && (
+              <Text size="xs" fw={700} c="white">
+                {video.channelTitle.charAt(0).toUpperCase()}
+              </Text>
+            )}
           </Avatar>
-          <Stack gap={0} style={{ minWidth: 0, flex: 1 }}>
+          <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
             <Text
               size="sm"
               fw={600}
               c={watched ? 'dimmed' : 'white'}
               lineClamp={2}
-              style={{ cursor: 'pointer', lineHeight: 1.35 }}
+              style={{ cursor: 'pointer', lineHeight: 1.4 }}
               onClick={onSelect}
             >
               {video.title}
             </Text>
-            <Text size="xs" c="dimmed" truncate mt={2}>{video.channelTitle}</Text>
-            <Text size="xs" c="dimmed" mt={1}>{formatDate(video.publishedAt)}</Text>
+            <Group gap={6} wrap="nowrap">
+              <Text size="xs" c="dimmed" truncate>{video.channelTitle}</Text>
+              <Text size="xs" c="dimmed">•</Text>
+              <Text size="xs" c="dimmed">{formatDate(video.publishedAt)}</Text>
+            </Group>
           </Stack>
         </Group>
       </Stack>
@@ -179,7 +201,7 @@ function VideoCard({ video, watched, onSelect, onToggleWatched }: VideoCardProps
   );
 }
 
-export default function VideoGrid({ videos, loading, watchedVideos, onToggleWatched }: VideoGridProps) {
+export default function VideoGrid({ videos, channels, loading, watchedVideos, onToggleWatched }: VideoGridProps) {
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
 
@@ -210,23 +232,26 @@ export default function VideoGrid({ videos, loading, watchedVideos, onToggleWatc
 
   if (videos.length === 0) {
     return (
-      <Center py={80}>
-        <Stack align="center" gap="xs">
+      <Center py={100}>
+        <Stack align="center" gap="md">
           <Box
-            w={64}
-            h={64}
+            w={80}
+            h={80}
             style={{
               borderRadius: '50%',
-              background: 'rgba(255,255,255,0.04)',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.05)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Play size={28} color="rgba(255,255,255,0.2)" />
+            <SearchX size={32} color="rgba(255,255,255,0.2)" />
           </Box>
-          <Text c="dimmed" size="lg" fw={500}>No videos found</Text>
-          <Text c="dimmed" size="sm">Add channels and refresh to see their latest videos</Text>
+          <div style={{ textAlign: 'center' }}>
+            <Text c="white" size="lg" fw={600}>No videos found</Text>
+            <Text c="dimmed" size="sm" mt={4}>Try adjusting your filters or search query</Text>
+          </div>
         </Stack>
       </Center>
     );
@@ -234,15 +259,17 @@ export default function VideoGrid({ videos, loading, watchedVideos, onToggleWatc
 
   return (
     <>
-      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="md">
-        {videos.map((video) => (
-          <VideoCard
-            key={video.id}
-            video={video}
-            watched={watchedVideos.has(video.id)}
-            onSelect={() => handleSelect(video)}
-            onToggleWatched={(e) => { e.stopPropagation(); onToggleWatched(video.id); }}
-          />
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
+        {videos.map((video, index) => (
+          <div key={video.id} style={{ animationDelay: `${(index % 12) * 0.05}s` }} className="animate-fade-in-up">
+            <VideoCard
+              video={video}
+              channel={channels.find(c => c.id === video.channelId)}
+              watched={watchedVideos.has(video.id)}
+              onSelect={() => handleSelect(video)}
+              onToggleWatched={(e) => { e.stopPropagation(); onToggleWatched(video.id); }}
+            />
+          </div>
         ))}
       </SimpleGrid>
 
@@ -256,11 +283,11 @@ export default function VideoGrid({ videos, loading, watchedVideos, onToggleWatc
         }
         size="xl"
         centered
-        overlayProps={{ backgroundOpacity: 0.7, blur: 4 }}
+        overlayProps={{ backgroundOpacity: 0.85, blur: 16 }}
         styles={{
-          header: { background: '#1a1a1a', borderBottom: '1px solid rgba(255,255,255,0.08)' },
-          body: { background: '#1a1a1a', padding: 0 },
-          content: { background: '#1a1a1a' },
+          header: { background: 'var(--glass-bg)', borderBottom: '1px solid var(--glass-border)' },
+          body: { background: 'var(--glass-bg)', padding: 0 },
+          content: { background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)' },
         }}
       >
         {selectedVideo && (

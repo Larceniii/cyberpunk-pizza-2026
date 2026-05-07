@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   ScrollArea,
-  NavLink,
   Avatar,
   Text,
   Group,
@@ -14,12 +13,14 @@ import {
   Tooltip,
   UnstyledButton,
 } from '@mantine/core';
-import { Plus, Tag, Filter, Users, Hash, Calendar, ArrowUpDown, ChevronDown, ChevronRight } from 'lucide-react';
-import { Channel } from '../types';
+import { Tag, Filter, Users, Hash, Calendar, ChevronDown, ChevronRight } from 'lucide-react';
+import { Channel, Video } from '../types';
 
 interface ChannelsSidebarProps {
   channels: Channel[];
   labels: string[];
+  videos: Video[];
+  watchedVideos: Set<string>;
   selectedChannelId?: string;
   selectedLabel?: string;
   onChannelSelect: (channelId: string | undefined) => void;
@@ -44,6 +45,8 @@ const getLabelColor = (labels: string[], label: string) => {
 export default function ChannelsSidebar({
   channels,
   labels,
+  videos,
+  watchedVideos,
   selectedChannelId,
   selectedLabel,
   onChannelSelect,
@@ -66,9 +69,27 @@ export default function ChannelsSidebar({
         const bCount = parseInt(b.subscriberCount || '0');
         return bCount - aCount;
       }
+      case 'recent': {
+        const aLastVideo = videos.filter(v => v.channelId === a.id).sort((v1, v2) => new Date(v2.publishedAt).getTime() - new Date(v1.publishedAt).getTime())[0];
+        const bLastVideo = videos.filter(v => v.channelId === b.id).sort((v1, v2) => new Date(v2.publishedAt).getTime() - new Date(v1.publishedAt).getTime())[0];
+        if (!aLastVideo) return 1;
+        if (!bLastVideo) return -1;
+        return new Date(bLastVideo.publishedAt).getTime() - new Date(aLastVideo.publishedAt).getTime();
+      }
       default: return a.title.localeCompare(b.title);
     }
   });
+
+  const getUnwatchedCount = (channelId: string) => {
+    return videos.filter(v => v.channelId === channelId && !watchedVideos.has(v.id)).length;
+  };
+
+  const getLabelUnwatchedCount = (label: string) => {
+    const labelChannels = channels.filter(c => c.labels?.includes(label)).map(c => c.id);
+    return videos.filter(v => labelChannels.includes(v.channelId) && !watchedVideos.has(v.id)).length;
+  };
+
+  const totalUnwatchedCount = videos.filter(v => !watchedVideos.has(v.id)).length;
 
   const formatSubscriberCount = (count?: string) => {
     if (!count) return '';
@@ -113,12 +134,12 @@ export default function ChannelsSidebar({
               style={{
                 borderRadius: 8,
                 background: !selectedChannelId && !selectedLabel
-                  ? 'rgba(224,49,49,0.15)'
+                  ? 'var(--accent-red-glow)'
                   : 'transparent',
                 border: !selectedChannelId && !selectedLabel
-                  ? '1px solid rgba(224,49,49,0.3)'
+                  ? '1px solid var(--accent-red)'
                   : '1px solid transparent',
-                transition: 'all 0.15s',
+                transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
               }}
             >
               <Group gap="xs" wrap="nowrap">
@@ -126,8 +147,9 @@ export default function ChannelsSidebar({
                   w={32}
                   h={32}
                   style={{
-                    borderRadius: 8,
-                    background: 'rgba(255,255,255,0.08)',
+                    borderRadius: 10,
+                    background: 'var(--glass-border)',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -138,7 +160,14 @@ export default function ChannelsSidebar({
                 </Box>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <Text size="sm" fw={600} c="white" truncate>All Channels</Text>
-                  <Text size="xs" c="dimmed">{channels.length} channels</Text>
+                  <Group gap={4}>
+                    <Text size="xs" c="dimmed">{channels.length} channels</Text>
+                    {totalUnwatchedCount > 0 && (
+                      <Badge size="xs" color="red" variant="filled">
+                        {totalUnwatchedCount}
+                      </Badge>
+                    )}
+                  </Group>
                 </div>
               </Group>
             </Box>
@@ -148,25 +177,26 @@ export default function ChannelsSidebar({
         {/* Labels section */}
         {labels.length > 0 && (
           <Box p="sm" pb={0}>
-            <UnstyledButton
-              onClick={() => setLabelsExpanded(!labelsExpanded)}
-              style={{ width: '100%' }}
-            >
               <Group justify="space-between" mb="xs">
-                <Group gap="xs">
-                  <Tag size={12} color="rgba(255,255,255,0.4)" />
-                  <Text size="xs" fw={600} c="dimmed" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Labels
-                  </Text>
-                </Group>
-                {labelsExpanded ? <ChevronDown size={12} color="rgba(255,255,255,0.4)" /> : <ChevronRight size={12} color="rgba(255,255,255,0.4)" />}
+                <UnstyledButton onClick={() => setLabelsExpanded(!labelsExpanded)}>
+                  <Group gap="xs">
+                    <Tag size={12} color="rgba(255,255,255,0.4)" />
+                    <Text size="xs" fw={600} c="dimmed" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Labels
+                    </Text>
+                    {labelsExpanded ? <ChevronDown size={12} color="rgba(255,255,255,0.4)" /> : <ChevronRight size={12} color="rgba(255,255,255,0.4)" />}
+                  </Group>
+                </UnstyledButton>
+                <Button variant="subtle" color="gray" size="compact-xs" onClick={onManageLabelsClick}>
+                  Manage
+                </Button>
               </Group>
-            </UnstyledButton>
 
             {labelsExpanded && (
               <Stack gap={2}>
                 {labels.map((label) => {
                   const count = channels.filter(c => c.labels?.includes(label)).length;
+                  const unwatchedCount = getLabelUnwatchedCount(label);
                   const color = getLabelColor(labels, label);
                   const isSelected = selectedLabel === label;
                   return (
@@ -193,7 +223,14 @@ export default function ChannelsSidebar({
                             style={{ borderRadius: '50%', background: color, flexShrink: 0 }}
                           />
                           <Text size="sm" c={isSelected ? 'white' : 'dimmed'} truncate flex={1}>{label}</Text>
-                          <Text size="xs" c="dimmed">{count}</Text>
+                          <Group gap={4}>
+                            {unwatchedCount > 0 && (
+                              <Badge size="xs" color="red" variant="filled">
+                                {unwatchedCount}
+                              </Badge>
+                            )}
+                            <Text size="xs" c="dimmed">{count}</Text>
+                          </Group>
                         </Group>
                       </Box>
                     </UnstyledButton>
@@ -211,6 +248,9 @@ export default function ChannelsSidebar({
             <Text size="xs" fw={600} c="dimmed" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Channels ({sortedChannels.length})
             </Text>
+            <Button variant="subtle" color="red" size="compact-xs" onClick={onManageChannelsClick}>
+              Manage
+            </Button>
           </Group>
 
           <Stack gap={2}>
@@ -226,9 +266,9 @@ export default function ChannelsSidebar({
                     p="xs"
                     style={{
                       borderRadius: 8,
-                      background: isSelected ? 'rgba(224,49,49,0.15)' : 'transparent',
-                      border: `1px solid ${isSelected ? 'rgba(224,49,49,0.3)' : 'transparent'}`,
-                      transition: 'all 0.15s',
+                      background: isSelected ? 'var(--accent-red-glow)' : 'transparent',
+                      border: `1px solid ${isSelected ? 'var(--accent-red)' : 'transparent'}`,
+                      transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
                     }}
                     className="sidebar-item-hover"
                   >
@@ -250,6 +290,11 @@ export default function ChannelsSidebar({
                             <Text size="xs" c="dimmed">
                               {formatSubscriberCount(channel.subscriberCount)}
                             </Text>
+                          )}
+                          {getUnwatchedCount(channel.id) > 0 && (
+                            <Badge size="xs" color="red" variant="filled">
+                              {getUnwatchedCount(channel.id)}
+                            </Badge>
                           )}
                         </Group>
                         {channel.labels && channel.labels.length > 0 && (
@@ -295,31 +340,7 @@ export default function ChannelsSidebar({
         </Box>
       </ScrollArea>
 
-      {/* Bottom actions */}
-      <Box p="sm" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <Stack gap="xs">
-          <Button
-            variant="light"
-            color="gray"
-            size="sm"
-            fullWidth
-            leftSection={<Tag size={14} />}
-            onClick={onManageLabelsClick}
-          >
-            Manage Labels
-          </Button>
-          <Button
-            variant="filled"
-            color="red"
-            size="sm"
-            fullWidth
-            leftSection={<Plus size={14} />}
-            onClick={onManageChannelsClick}
-          >
-            Manage Channels
-          </Button>
-        </Stack>
-      </Box>
+
     </Stack>
   );
 }

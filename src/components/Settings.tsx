@@ -11,16 +11,20 @@ import {
   ActionIcon,
   Tooltip,
   Box,
+  ColorInput,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { Settings as SettingsIcon, Key, Bell, Clock, Save } from 'lucide-react';
+import { Settings as SettingsIcon, Key, Bell, Clock, Save, Type, Palette } from 'lucide-react';
 
 interface SettingsProps {
   apiKey: string;
   pollingEnabled: boolean;
   pollingInterval: number;
+  appTitle?: string;
+  accentColor?: string;
   onApiKeyChange: (apiKey: string) => void;
   onPollingChange: (enabled: boolean, interval: number) => void;
+  onPersonalizationChange: (title: string, color: string) => void;
 }
 
 export default function Settings({
@@ -29,22 +33,30 @@ export default function Settings({
   pollingInterval,
   onApiKeyChange,
   onPollingChange,
+  onPersonalizationChange,
+  appTitle = 'MyTube',
+  accentColor = '#e03131',
 }: SettingsProps) {
   const [opened, { open, close }] = useDisclosure(false);
   const [newApiKey, setNewApiKey] = useState(apiKey);
   const [newPollingEnabled, setNewPollingEnabled] = useState(pollingEnabled);
   const [newPollingInterval, setNewPollingInterval] = useState(pollingInterval);
+  const [newAppTitle, setNewAppTitle] = useState(appTitle);
+  const [newAccentColor, setNewAccentColor] = useState(accentColor);
 
   const handleOpen = () => {
     setNewApiKey(apiKey);
     setNewPollingEnabled(pollingEnabled);
     setNewPollingInterval(pollingInterval);
+    setNewAppTitle(appTitle);
+    setNewAccentColor(accentColor);
     open();
   };
 
   const handleSave = () => {
     onApiKeyChange(newApiKey);
     onPollingChange(newPollingEnabled, newPollingInterval);
+    onPersonalizationChange(newAppTitle, newAccentColor);
     close();
   };
 
@@ -52,6 +64,8 @@ export default function Settings({
     setNewApiKey(apiKey);
     setNewPollingEnabled(pollingEnabled);
     setNewPollingInterval(pollingInterval);
+    setNewAppTitle(appTitle);
+    setNewAccentColor(accentColor);
     close();
   };
 
@@ -88,6 +102,42 @@ export default function Settings({
         }}
       >
         <Stack gap="lg">
+          {/* Personalization */}
+          <Box
+            p="md"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              borderRadius: 10,
+              border: '1px solid rgba(255,255,255,0.08)',
+            }}
+          >
+            <Group gap="xs" mb="sm">
+              <Palette size={16} color="var(--accent-red)" />
+              <Text fw={600} c="white" size="sm">Personalization</Text>
+            </Group>
+            <Stack gap="md">
+              <TextInput
+                label={<Group gap="xs" mb={4}><Type size={14} color="rgba(255,255,255,0.7)" /><Text size="sm" c="dimmed">App Title</Text></Group>}
+                value={newAppTitle}
+                onChange={(e) => setNewAppTitle(e.currentTarget.value)}
+                placeholder="Jason's Tube"
+                styles={{
+                  input: { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'white' },
+                }}
+              />
+              <ColorInput
+                label={<Group gap="xs" mb={4}><Palette size={14} color="rgba(255,255,255,0.7)" /><Text size="sm" c="dimmed">Accent Color</Text></Group>}
+                value={newAccentColor}
+                onChange={setNewAccentColor}
+                format="hex"
+                swatches={['#e03131', '#228be6', '#12b886', '#fab005', '#fd7e14', '#be4bdb', '#f06595']}
+                styles={{
+                  input: { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'white' },
+                }}
+              />
+            </Stack>
+          </Box>
+
           {/* API Key */}
           <Box
             p="md"
